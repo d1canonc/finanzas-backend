@@ -19,6 +19,5 @@
     "node-cron": "^3.0.3",
     "web-push": "^3.6.7"
   },
-  "engines": {
-  "node": "18.x"
+  "engines": { "node": "18.x" }
 }
