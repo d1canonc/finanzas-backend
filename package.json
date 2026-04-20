@@ -2,11 +2,10 @@
   "name": "finanzas-backend",
   "version": "3.0.0",
   "main": "server.js",
-  "scripts":  {
-  "start": "node server.js",
-  "dev": "nodemon server.js",
-  "postinstall": "npm rebuild better-sqlite3"
-},
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
     "better-sqlite3": "^9.4.3",
@@ -20,5 +19,6 @@
     "node-cron": "^3.0.3",
     "web-push": "^3.6.7"
   },
-  "engines": { "node": ">=18.0.0" }
+  "engines": {
+  "node": "18.x"
 }
