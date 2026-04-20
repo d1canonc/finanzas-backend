@@ -1,12 +1,19 @@
-// notifications.js
+"use strict";
 const webpush = require("web-push");
-const { q } = require("./db");
+const { q }   = require("./db");
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL || "mailto:admin@finanzas.app",
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+function initVapid() {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      process.env.VAPID_EMAIL || "mailto:admin@finanzas.app",
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+  }
+}
+initVapid();
+
+const fmtCOP = v => "$" + Number(Math.round(v || 0)).toLocaleString("es-CO");
 
 async function sendPush(userId, payload) {
   const subs = q.getPushSubs.all(userId);
@@ -21,18 +28,15 @@ async function sendPush(userId, payload) {
   ));
 }
 
-const fmtCOP = v => "$" + Number(Math.round(v)).toLocaleString("es-CO");
-
 const notify = {
-  expense:     (uid, {name,amount,account}) => sendPush(uid, { title:"💸 Gasto registrado", body:`${name}: ${fmtCOP(amount)} (${account==="credit"?"Tarjeta":"Ahorros"})`, tag:"expense", data:{type:"expense"} }),
-  income:      (uid, {name,amount})         => sendPush(uid, { title:"📈 Ingreso registrado", body:`${name}: ${fmtCOP(amount)}`, tag:"income", data:{type:"income"} }),
-  installment: (uid, {name,amount,monthly,months}) => sendPush(uid, { title:"📋 Cuota registrada", body:`${name}: ${fmtCOP(monthly)}/mes × ${months} (total ${fmtCOP(amount)})`, tag:"installment", data:{type:"installment"} }),
-  creditAlert: (uid, {pct,available})       => sendPush(uid, { title:`🚨 Cupo al ${pct.toFixed(0)}%`, body:`Solo te quedan ${fmtCOP(available)} disponibles`, tag:"credit-alert", requireInteraction:true, data:{type:"credit_alert"} }),
-  payDayReminder: (uid, {daysLeft,minPayment,fullPayment}) => sendPush(uid, { title:`⏰ Pago tarjeta en ${daysLeft} días`, body:`Mínimo: ${fmtCOP(minPayment)} | Sin interés: ${fmtCOP(fullPayment)}`, tag:"pay-reminder", requireInteraction:true, data:{type:"pay_reminder"} }),
-  cutDayAlert: (uid, {tomorrow,balance})    => sendPush(uid, { title:"✂️ Mañana es tu fecha de corte", body:`Saldo a cortar: ${fmtCOP(balance)}`, tag:"cut-alert", data:{type:"cut_alert"} }),
-  needsInfo:   (uid, {name,amount,pendingId}) => sendPush(uid, { title:"❓ ¿A cuántas cuotas?", body:`"${name}" por ${fmtCOP(amount)} — toca para completar`, tag:"needs-info", requireInteraction:true, data:{type:"needs_info",pendingId} }),
-  recurring:   (uid, {name,amount})         => sendPush(uid, { title:"🔄 Cobro recurrente detectado", body:`${name}: ${fmtCOP(amount)}`, tag:"recurring", data:{type:"recurring"} }),
-  weeklyReport:(uid, {spent,pct,free})      => sendPush(uid, { title:"📊 Resumen semanal", body:`Gastado: ${fmtCOP(spent)} (${pct.toFixed(0)}% cupo) · Libre: ${fmtCOP(free)}`, tag:"weekly", data:{type:"weekly"} }),
+  expense:      (uid, d) => sendPush(uid, { title: "💸 Gasto registrado",        body: `${d.name}: ${fmtCOP(d.amount)} (${d.account === "credit" ? "Tarjeta" : "Ahorros"})`, tag: "expense",    data: { type: "expense" } }),
+  income:       (uid, d) => sendPush(uid, { title: "📈 Ingreso registrado",       body: `${d.name}: ${fmtCOP(d.amount)}`,                                                        tag: "income",     data: { type: "income" } }),
+  installment:  (uid, d) => sendPush(uid, { title: "📋 Cuota registrada",         body: `${d.name}: ${fmtCOP(d.monthly)}/mes × ${d.months}`,                                     tag: "install",    data: { type: "installment" } }),
+  creditAlert:  (uid, d) => sendPush(uid, { title: `🚨 Cupo al ${d.pct.toFixed(0)}%`, body: `Solo ${fmtCOP(d.available)} disponibles`, tag: "credit-alert", requireInteraction: true, data: { type: "credit_alert" } }),
+  needsInfo:    (uid, d) => sendPush(uid, { title: "❓ ¿A cuántas cuotas?",       body: `"${d.name}" por ${fmtCOP(d.amount)} — toca para completar`, tag: "needs-info", requireInteraction: true, data: { type: "needs_info", pendingId: d.pendingId } }),
+  payReminder:  (uid, d) => sendPush(uid, { title: `⏰ Pago tarjeta en ${d.days} días`, body: `Total a pagar: ${fmtCOP(d.total)}`, tag: "pay-reminder", requireInteraction: true, data: { type: "pay_reminder" } }),
+  cutAlert:     (uid, d) => sendPush(uid, { title: "✂️ Mañana es tu fecha de corte", body: `Saldo acumulado: ${fmtCOP(d.balance)}`, tag: "cut-alert", data: { type: "cut_alert" } }),
+  weeklyReport: (uid, d) => sendPush(uid, { title: "📊 Resumen semanal",           body: `Gastado: ${fmtCOP(d.spent)} · ${d.pct.toFixed(0)}% del cupo · Libre: ${fmtCOP(d.free)}`, tag: "weekly", data: { type: "weekly" } }),
 };
 
 module.exports = { sendPush, notify };
